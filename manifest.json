@@ -2,7 +2,7 @@
 	"id": "obsidian-metalog",
 	"name": "Metalog",
 	"version": "v0.1.3-alpha",
-	"minAppVersion": "0.15.0",
+	"minAppVersion": "0.16.0",
 	"description": "log document usage data",
 	"author": "TianDatong",
 	"authorUrl": "https://github.com/temberature",

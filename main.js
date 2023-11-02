@@ -29,15 +29,37 @@ __export(main_exports, {
 module.exports = __toCommonJS(main_exports);
 var import_obsidian = require("obsidian");
 var DEFAULT_SETTINGS = {
-  mySetting: "default"
+  mySetting: "",
+  timesViewed: "timesViewed",
+  recentlyRead: "recentlyRead",
+  onceViewed: 1
 };
 function log(e) {
-  if (window._debug) {
+  if (window._debug || true) {
     console.log(e);
   }
 }
+function dateFormat(date, fmt) {
+  let o = {
+    "M+": date.getMonth() + 1,
+    "d+": date.getDate(),
+    "h+": date.getHours(),
+    "m+": date.getMinutes(),
+    "s+": date.getSeconds(),
+    "q+": Math.floor((date.getMonth() + 3) / 3),
+    "S": date.getMilliseconds()
+  };
+  if (/(y+)/.test(fmt))
+    fmt = fmt.replace(RegExp.$1, (date.getFullYear() + "").substr(4 - RegExp.$1.length));
+  for (let k in o)
+    if (new RegExp("(" + k + ")").test(fmt)) {
+      fmt = fmt.replace(RegExp.$1, RegExp.$1.length == 1 ? o[k] : ("00" + o[k]).substr(("" + o[k]).length));
+    }
+  return fmt;
+}
 var MyPlugin = class extends import_obsidian.Plugin {
   async onload() {
+    const _this = this;
     await this.loadSettings();
     const app = this.app;
     app.workspace.on("file-open", (file) => {
@@ -47,7 +69,7 @@ var MyPlugin = class extends import_obsidian.Plugin {
       }
       let isExclude = false;
       this.settings.mySetting.split(",").forEach((folder) => {
-        if (file == null ? void 0 : file.path.startsWith(folder.trim())) {
+        if (folder.trim() !== "" && (file == null ? void 0 : file.path.startsWith(folder.trim()))) {
           isExclude = true;
           return;
         }
@@ -57,11 +79,23 @@ var MyPlugin = class extends import_obsidian.Plugin {
       }
       app.fileManager.processFrontMatter(file, (frontmatter) => {
         log(frontmatter);
-        const count = frontmatter["review count"];
-        if (!count) {
-          frontmatter["review count"] = 1;
+        const key = _this.settings.timesViewed;
+        const recentlyReadKey = _this.settings.recentlyRead;
+        const count = frontmatter[key];
+        const recentlyRead = frontmatter[recentlyReadKey];
+        const now = dateFormat(new Date(), "yyyy-MM-dd");
+        if (!count || !recentlyRead) {
+          frontmatter[key] = 1;
+          frontmatter[recentlyReadKey] = now;
         } else {
-          frontmatter["review count"] += 1;
+          const nowNumber = Number(now.replace(/-/g, ""));
+          const recordNumber = Number(recentlyRead.replace(/-/g, ""));
+          const onceViewed = _this.settings.onceViewed;
+          if (nowNumber - recordNumber >= onceViewed) {
+            log(`nowNumber:${nowNumber} - recordNumber${recordNumber} >= onceViewed:${onceViewed}`);
+            frontmatter[key] += 1;
+            frontmatter[recentlyReadKey] = now;
+          }
         }
       });
     });
@@ -87,9 +121,24 @@ var SampleSettingTab = class extends import_obsidian.PluginSettingTab {
     const { containerEl } = this;
     containerEl.empty();
     containerEl.createEl("h2", { text: "Settings for Metalog." });
-    new import_obsidian.Setting(containerEl).setName("files to exclude").setDesc("you do not want log").addText((text) => text.setPlaceholder("e.g. DailyNotes, Readwise/Articles").setValue(this.plugin.settings.mySetting).onChange(async (value) => {
-      console.log("Secret: " + value);
+    new import_obsidian.Setting(containerEl).setName("\u6392\u9664\u7684\u6587\u4EF6").setDesc("\u4E0D\u60F3\u8BB0\u5F55\u7684\u6587\u4EF6\u540D\uFF0C\u7528\u9017\u53F7\u5206\u9694").addText((text) => text.setPlaceholder("e.g. DailyNotes, Readwise/Articles").setValue(this.plugin.settings.mySetting).onChange(async (value) => {
+      log("Secret: " + value);
       this.plugin.settings.mySetting = value;
+      await this.plugin.saveSettings();
+    }));
+    new import_obsidian.Setting(containerEl).setName("timesViewed name").setDesc("\u81EA\u5B9A\u4E49\u9605\u8BFB\u6B21\u6570\u7684\u540D\u79F0").addText((text) => text.setPlaceholder("e.g. review count").setValue(this.plugin.settings.timesViewed).onChange(async (value) => {
+      log("Secret: " + value);
+      this.plugin.settings.timesViewed = value || DEFAULT_SETTINGS.timesViewed;
+      await this.plugin.saveSettings();
+    }));
+    new import_obsidian.Setting(containerEl).setName("recentlyRead name").setDesc("\u81EA\u5B9A\u4E49\u6700\u8FD1\u9605\u8BFB\u65E5\u671F\u5B57\u6BB5\u7684\u540D\u79F0").addText((text) => text.setPlaceholder("e.g. recentlyRead").setValue(this.plugin.settings.recentlyRead).onChange(async (value) => {
+      log("Secret: " + value);
+      this.plugin.settings.recentlyRead = value || DEFAULT_SETTINGS.recentlyRead;
+      await this.plugin.saveSettings();
+    }));
+    new import_obsidian.Setting(containerEl).setName("onceViewed day").setDesc("\u4E00\u6B21\u9605\u8BFB\u95F4\u9694\u591A\u4E45\u624D\u52A0\u4E00\u6B21\uFF08\u5355\u4F4D\u5929\uFF09").addText((text) => text.setPlaceholder("e.g. 1").setValue(String(this.plugin.settings.onceViewed)).onChange(async (value) => {
+      log("Secret: " + value);
+      this.plugin.settings.onceViewed = Number(value || DEFAULT_SETTINGS.onceViewed);
       await this.plugin.saveSettings();
     }));
   }
