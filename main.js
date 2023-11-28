@@ -32,7 +32,8 @@ var DEFAULT_SETTINGS = {
   mySetting: "",
   timesViewed: "timesViewed",
   recentlyRead: "recentlyRead",
-  onceViewed: 1
+  onceViewed: 1,
+  customize: "{}"
 };
 function log(e) {
   if (window._debug || true) {
@@ -78,6 +79,7 @@ var MyPlugin = class extends import_obsidian.Plugin {
         return;
       }
       app.fileManager.processFrontMatter(file, (frontmatter) => {
+        var _a;
         log(frontmatter);
         const key = _this.settings.timesViewed;
         const recentlyReadKey = _this.settings.recentlyRead;
@@ -95,6 +97,13 @@ var MyPlugin = class extends import_obsidian.Plugin {
             log(`nowNumber:${nowNumber} - recordNumber${recordNumber} >= onceViewed:${onceViewed}`);
             frontmatter[key] += 1;
             frontmatter[recentlyReadKey] = now;
+          }
+        }
+        const customize = JSON.parse(String((_a = this.settings.customize) != null ? _a : "{}"));
+        const keys = Object.keys(customize);
+        for (const key2 of keys) {
+          if (frontmatter[key2] == void 0) {
+            frontmatter[key2] = customize[key2];
           }
         }
       });
@@ -118,6 +127,7 @@ var SampleSettingTab = class extends import_obsidian.PluginSettingTab {
     this.plugin = plugin;
   }
   display() {
+    var _a;
     const { containerEl } = this;
     containerEl.empty();
     containerEl.createEl("h2", { text: "Settings for Metalog." });
@@ -141,5 +151,66 @@ var SampleSettingTab = class extends import_obsidian.PluginSettingTab {
       this.plugin.settings.onceViewed = Number(value || DEFAULT_SETTINGS.onceViewed);
       await this.plugin.saveSettings();
     }));
+    const customize = JSON.parse(String((_a = this.plugin.settings.customize) != null ? _a : "{}"));
+    const keys = Object.keys(customize);
+    const plugin = this.plugin;
+    function newKV(oldKey = "", oldValue = "") {
+      let key_str = oldKey;
+      let value_str = oldValue;
+      let pre_key = key_str;
+      async function saveSettings() {
+        var _a2;
+        if (key_str != "" && value_str != "") {
+          const customize2 = JSON.parse(String((_a2 = plugin.settings.customize) != null ? _a2 : "{}"));
+          customize2[key_str] = value_str;
+          if (pre_key != "" && pre_key != key_str) {
+            delete customize2[pre_key];
+            pre_key = key_str;
+          }
+          plugin.settings.customize = JSON.stringify(customize2);
+          await plugin.saveSettings();
+        }
+      }
+      const customizeKV = new import_obsidian.Setting(containerEl).addText((key) => {
+        key.setPlaceholder("key").onChange(async (value) => {
+          key_str = value;
+          await saveSettings();
+        });
+        if (oldKey != "") {
+          key.setValue(oldKey);
+        }
+      }).addText((value) => {
+        value.setPlaceholder("value").onChange(async (value2) => {
+          value_str = value2;
+          await saveSettings();
+        });
+        if (oldValue != "") {
+          value.setValue(oldValue);
+        }
+      });
+      customizeKV.addButton((component) => {
+        component.onClick(async () => {
+          var _a2, _b;
+          (_a2 = customizeKV.controlEl.parentElement) == null ? void 0 : _a2.removeChild(customizeKV.controlEl);
+          const customize2 = JSON.parse(String((_b = plugin.settings.customize) != null ? _b : "{}"));
+          if (customize2[key_str] != void 0) {
+            delete customize2[key_str];
+          }
+          if (customize2[pre_key] != void 0) {
+            delete customize2[pre_key];
+          }
+          plugin.settings.customize = JSON.stringify(customize2);
+          await plugin.saveSettings();
+        }).setButtonText("\u5220\u9664");
+      });
+    }
+    new import_obsidian.Setting(containerEl).addButton((component) => {
+      component.onClick(() => {
+        newKV();
+      }).setButtonText("\u6DFB\u52A0");
+    });
+    for (const key of keys) {
+      newKV(key, customize[key]);
+    }
   }
 };

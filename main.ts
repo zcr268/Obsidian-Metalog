@@ -7,14 +7,15 @@ interface MyPluginSettings {
 	timesViewed: string;
 	recentlyRead: string;
 	onceViewed: number;
+	customize: string;
 }
 
 const DEFAULT_SETTINGS: MyPluginSettings = {
-	mySetting: '', timesViewed: 'timesViewed', recentlyRead: 'recentlyRead', onceViewed: 1,
+	mySetting: '', timesViewed: 'timesViewed', recentlyRead: 'recentlyRead', onceViewed: 1, customize: '{}',
 }
 
 function log(e: any) {
-	if ((window as any)._debug||true) {
+	if ((window as any)._debug || true) {
 		console.log(e)
 	}
 }
@@ -72,8 +73,8 @@ export default class MyPlugin extends Plugin {
 					frontmatter[key] = 1
 					frontmatter[recentlyReadKey] = now
 				} else {
-					const nowNumber = Number(now.replace(/-/g, ''));
-					const recordNumber = Number(recentlyRead.replace(/-/g, ''));
+					const nowNumber = Number(now.replace(/-/g, ''))
+					const recordNumber = Number(recentlyRead.replace(/-/g, ''))
 					const onceViewed = _this.settings.onceViewed
 					if (nowNumber - recordNumber >= onceViewed) {
 						log(`nowNumber:${nowNumber} - recordNumber${recordNumber} >= onceViewed:${onceViewed}`)
@@ -81,7 +82,13 @@ export default class MyPlugin extends Plugin {
 						frontmatter[recentlyReadKey] = now
 					}
 				}
-
+				const customize = JSON.parse(String(this.settings.customize ?? '{}'))
+				const keys = Object.keys(customize)
+				for (const key of keys) {
+					if (frontmatter[key] == undefined) {
+						frontmatter[key] = customize[key]
+					}
+				}
 			})
 		})
 
@@ -183,5 +190,70 @@ class SampleSettingTab extends PluginSettingTab {
 					this.plugin.settings.onceViewed = Number(value || DEFAULT_SETTINGS.onceViewed)
 					await this.plugin.saveSettings()
 				}))
+
+		const customize = JSON.parse(String(this.plugin.settings.customize ?? '{}'))
+		const keys = Object.keys(customize)
+		const plugin = this.plugin
+
+		function newKV(oldKey = '', oldValue = '') {
+			let key_str = oldKey
+			let value_str = oldValue
+			let pre_key = key_str
+
+			async function saveSettings() {
+				if (key_str != '' && value_str != '') {
+					const customize = JSON.parse(String(plugin.settings.customize ?? '{}'))
+					customize[key_str] = value_str
+					if (pre_key != '' && pre_key != key_str) {
+						delete customize[pre_key]
+						pre_key = key_str
+					}
+					plugin.settings.customize = JSON.stringify(customize)
+					await plugin.saveSettings()
+				}
+			}
+
+			const customizeKV = new Setting(containerEl).addText(key => {
+				key.setPlaceholder('key').onChange(async value => {
+					key_str = value
+					await saveSettings()
+				})
+				if (oldKey != '') {
+					key.setValue(oldKey)
+				}
+			}).addText(value => {
+				value.setPlaceholder('value').onChange(async value => {
+					value_str = value
+					await saveSettings()
+				})
+				if (oldValue != '') {
+					value.setValue(oldValue)
+				}
+			})
+			customizeKV.addButton(component => {
+				component.onClick(async () => {
+					customizeKV.controlEl.parentElement?.removeChild(customizeKV.controlEl)
+					const customize = JSON.parse(String(plugin.settings.customize ?? '{}'))
+					if (customize[key_str] != undefined) {
+						delete customize[key_str]
+					}
+					if (customize[pre_key] != undefined) {
+						delete customize[pre_key]
+					}
+					plugin.settings.customize = JSON.stringify(customize)
+					await plugin.saveSettings()
+				}).setButtonText('删除')
+			})
+		}
+
+		new Setting(containerEl).addButton(component => {
+			component.onClick(() => {
+				newKV()
+			}).setButtonText('添加')
+		})
+
+		for (const key of keys) {
+			newKV(key, customize[key])
+		}
 	}
 }
