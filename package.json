@@ -1,6 +1,6 @@
 {
 	"name": "obsidian-metalog",
-	"version": "v0.1.5-alpha",
+	"version": "v0.1.6-alpha",
 	"description": "log document usage data",
 	"main": "main.js",
 	"scripts": {
