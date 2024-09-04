@@ -83,7 +83,7 @@ var MyPlugin = class extends import_obsidian.Plugin {
         log(frontmatter);
         const key = _this.settings.timesViewed;
         const recentlyReadKey = _this.settings.recentlyRead;
-        const count = frontmatter[key];
+        const count = Number(frontmatter[key]);
         const recentlyRead = frontmatter[recentlyReadKey];
         const now = dateFormat(new Date(), "yyyy-MM-dd");
         if (!count || !recentlyRead) {
@@ -95,7 +95,7 @@ var MyPlugin = class extends import_obsidian.Plugin {
           const onceViewed = _this.settings.onceViewed;
           if (nowNumber - recordNumber >= onceViewed) {
             log(`nowNumber:${nowNumber} - recordNumber${recordNumber} >= onceViewed:${onceViewed}`);
-            frontmatter[key] += 1;
+            frontmatter[key] = 1 + count;
             frontmatter[recentlyReadKey] = now;
           }
         }
